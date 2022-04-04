@@ -1,0 +1,6 @@
+{
+  "groups": "/groups/groups.csv",
+  "houses": "/houses/houses.csv",
+  "incomes": "/incomes/incomes.csv",
+  "payments": "/payments/payments.csv"
+}
