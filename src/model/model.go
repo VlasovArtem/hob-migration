@@ -49,7 +49,7 @@ type CreateIncomeRequest struct {
 	Description string
 	Date        string
 	Sum         float32
-	HouseId     string
+	HouseId     *string
 	GroupIds    []string
 }
 
@@ -71,7 +71,7 @@ type CreatePaymentRequest struct {
 	Description string
 	HouseId     string
 	UserId      string
-	ProviderId  string
+	ProviderId  *string
 	Date        string
 	Sum         float32
 }

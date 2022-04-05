@@ -5,6 +5,7 @@ import (
 	"github.com/VlasovArtem/hob-migration/src/client"
 	"github.com/VlasovArtem/hob-migration/src/config"
 	"github.com/VlasovArtem/hob-migration/src/model"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strconv"
 )
@@ -76,7 +77,7 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (mo
 				return dto.Id.String()
 			}
 			log.Fatal().Msgf("house identifier is missing at the csv line %d", lineNumber)
-			return ""
+			return uuid.Nil.String()
 		}()
 
 		request := model.CreatePaymentRequest{
@@ -85,6 +86,7 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (mo
 			HouseId:     houseId,
 			UserId:      p.config.UserId,
 			Date:        line[3],
+			ProviderId:  nil,
 			Sum:         float32(sum),
 		}
 

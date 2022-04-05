@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/VlasovArtem/hob-migration/src/client"
 	"github.com/VlasovArtem/hob-migration/src/model"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
@@ -88,15 +87,16 @@ func (i *IncomeMigrator) parseCSVLine() func(line []string, lineNumber int) (mod
 			return groupIds
 		}()
 
-		houseId := func() string {
+		houseId := func() *string {
 			if len(groupIds) == 0 {
 				if dto, ok := i.houseMap[line[0]]; ok {
-					return dto.Id.String()
+					id := dto.Id.String()
+					return &id
 				} else {
 					log.Fatal().Msgf("group name or house identifier is missing at the csv line %d", lineNumber)
 				}
 			}
-			return uuid.Nil.String()
+			return nil
 		}()
 
 		request := model.CreateIncomeRequest{

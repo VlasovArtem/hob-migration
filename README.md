@@ -53,16 +53,16 @@ Possible file formats:
 
 ### Incomes
 
-| House Identifier     | Groups                         | Name        | Description        | Date       | Sum    |
-|----------------------|--------------------------------|-------------|--------------------|------------|--------|
-| Reference to a House | Group Names (divided by comma) | Income Name | Income Description | 10.11.2017 | 100,01 |
+| House Identifier     | Groups                         | Name        | Description        | Date                 | Sum    |
+|----------------------|--------------------------------|-------------|--------------------|----------------------|--------|
+| Reference to a House | Group Names (divided by comma) | Income Name | Income Description | 2017-12-20T00:00:00Z | 100,01 |
 
 `House Identifier` or `Groups` name requires
 
 ### Payments
 
-| House Identifier     | Name        | Description        | Date       | Sum    |
-|----------------------|-------------|--------------------|------------|--------|
-| Reference to a House | Income Name | Income Description | 10.11.2017 | 100,01 |
+| House Identifier     | Name        | Description        | Date                 | Sum    |
+|----------------------|-------------|--------------------|----------------------|--------|
+| Reference to a House | Income Name | Income Description | 2017-12-20T00:00:00Z | 100,01 |
 
 `House Identifier` requires
