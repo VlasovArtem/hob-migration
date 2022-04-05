@@ -104,6 +104,12 @@ func ReadBody[T any](response *http.Response, err error) (T, error) {
 		return t, err
 	}
 
+	if response.StatusCode != 200 && response.StatusCode != 201 {
+		text := string(allBytes)
+		log.Fatal().Msg(text)
+		return t, errors.New(text)
+	}
+
 	err = json.Unmarshal(allBytes, &t)
 
 	if err != nil {

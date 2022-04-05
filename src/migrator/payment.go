@@ -23,9 +23,11 @@ func NewPaymentMigrator(
 	hobClient *client.HobClient,
 	houseMap map[string]model.HouseDto,
 ) *PaymentMigrator {
+	log.Info().Msg("Starting Payment Migrator")
+
 	path, ok := requestMigrator.TypeToPathMap["payments"]
 	if !ok {
-		log.Info().Msg("houses path not found")
+		log.Info().Msg("payments path not found")
 		return nil
 	}
 	migrator := &PaymentMigrator{
@@ -38,7 +40,7 @@ func NewPaymentMigrator(
 		mappers: map[string]Mapper[[]model.PaymentDto]{
 			"csv": &CSVMigrator[model.CreatePaymentRequest, []model.PaymentDto]{
 				filePath: filePath,
-				header:   []string{"House Identifier", "Name", "Description", "Sum", "Date"},
+				header:   []string{"House Identifier", "Name", "Description", "Date", "Sum"},
 				parser:   migrator.parseCSVLine(),
 				mapper:   migrator.mapPayments,
 			},
@@ -50,28 +52,30 @@ func NewPaymentMigrator(
 }
 
 func (p *PaymentMigrator) mapPayments(requests []model.CreatePaymentRequest) (responses []model.PaymentDto, err error) {
-	paymentBatch, err := p.client.CreatePaymentBatch(model.CreatePaymentBatchRequest{Payments: requests})
-	if err != nil {
+	request := model.CreatePaymentBatchRequest{Payments: requests}
+
+	if response, err := p.client.CreatePaymentBatch(request); err != nil {
 		log.Fatal().Err(err).Msg("error while creating payments")
 		return nil, err
 	} else {
-		return paymentBatch, nil
+		log.Info().Msg(fmt.Sprintf("%d payments created", len(response)))
+		return response, nil
 	}
 }
 
-func (p *PaymentMigrator) parseCSVLine() func(line []string) (model.CreatePaymentRequest, error) {
-	return func(line []string) (model.CreatePaymentRequest, error) {
-		sum, err := strconv.ParseFloat(line[3], 2)
+func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (model.CreatePaymentRequest, error) {
+	return func(line []string, lineNumber int) (model.CreatePaymentRequest, error) {
+		sum, err := strconv.ParseFloat(line[4], 2)
 
 		if err != nil {
-			log.Fatal().Msg(fmt.Sprintf("sum not valid float %s", line[3]))
+			log.Fatal().Msgf("sum not valid float %s at the csv line %d", line[3], lineNumber)
 		}
 
 		houseId := func() string {
 			if dto, ok := p.houseMap[line[0]]; ok {
 				return dto.Id.String()
 			}
-			log.Fatal().Msg("house identifier is missing")
+			log.Fatal().Msgf("house identifier is missing at the csv line %d", lineNumber)
 			return ""
 		}()
 
@@ -80,7 +84,7 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string) (model.CreatePaymen
 			Description: line[2],
 			HouseId:     houseId,
 			UserId:      p.config.UserId,
-			Date:        line[4],
+			Date:        line[3],
 			Sum:         float32(sum),
 		}
 

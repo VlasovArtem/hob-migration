@@ -1,17 +1,22 @@
 package migrator
 
 import (
+	"fmt"
 	"github.com/VlasovArtem/hob-migration/src/client"
+	"github.com/VlasovArtem/hob-migration/src/config"
 	"github.com/VlasovArtem/hob-migration/src/model"
 	"github.com/rs/zerolog/log"
 )
 
 type GroupMigrator struct {
 	*BaseMigrator[map[string]model.GroupDto]
+	config *config.CMDConfig
 	client *client.HobClient
 }
 
-func NewGroupMigrator(requestMigrator RequestMigrator, hobClient *client.HobClient) *GroupMigrator {
+func NewGroupMigrator(requestMigrator RequestMigrator, config *config.CMDConfig, hobClient *client.HobClient) *GroupMigrator {
+	log.Info().Msg("Starting Group Migrator")
+
 	path, ok := requestMigrator.TypeToPathMap["groups"]
 	if !ok {
 		log.Info().Msg("groups path not found")
@@ -19,6 +24,7 @@ func NewGroupMigrator(requestMigrator RequestMigrator, hobClient *client.HobClie
 	}
 	migrator := &GroupMigrator{
 		client: hobClient,
+		config: config,
 	}
 	filePath := path
 	migrator.BaseMigrator = &BaseMigrator[map[string]model.GroupDto]{
@@ -45,15 +51,18 @@ func (g *GroupMigrator) mapGroups(requests []model.CreateGroupRequest) (map[stri
 		for _, group := range batchResponse {
 			response[group.Name] = group
 		}
+
+		log.Info().Msg(fmt.Sprintf("%d groups created", len(response)))
 	}
 
 	return response, nil
 }
 
-func (g *GroupMigrator) parseCSVLine() func(line []string) (model.CreateGroupRequest, error) {
-	return func(line []string) (model.CreateGroupRequest, error) {
+func (g *GroupMigrator) parseCSVLine() func(line []string, lineNumber int) (model.CreateGroupRequest, error) {
+	return func(line []string, lineNumber int) (model.CreateGroupRequest, error) {
 		request := model.CreateGroupRequest{
-			Name: line[0],
+			Name:    line[0],
+			OwnerId: g.config.UserId,
 		}
 
 		return request, nil

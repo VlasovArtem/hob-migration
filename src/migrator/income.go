@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/VlasovArtem/hob-migration/src/client"
 	"github.com/VlasovArtem/hob-migration/src/model"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strconv"
 	"strings"
@@ -22,9 +23,11 @@ func NewIncomeMigrator(
 	houseMap map[string]model.HouseDto,
 	groupMap map[string]model.GroupDto,
 ) *IncomeMigrator {
+	log.Info().Msg("Starting Income Migrator")
+
 	path, ok := requestMigrator.TypeToPathMap["incomes"]
 	if !ok {
-		log.Info().Msg("houses path not found")
+		log.Info().Msg("income path not found")
 		return nil
 	}
 	migrator := &IncomeMigrator{
@@ -37,7 +40,7 @@ func NewIncomeMigrator(
 		mappers: map[string]Mapper[[]model.IncomeDto]{
 			"csv": &CSVMigrator[model.CreateIncomeRequest, []model.IncomeDto]{
 				filePath: filePath,
-				header:   []string{"House Identifier", "Groups", "Name", "Description", "Date", "Sum", "House Name"},
+				header:   []string{"House Identifier", "Groups", "Name", "Description", "Date", "Sum"},
 				parser:   migrator.parseCSVLine(),
 				mapper:   migrator.mapIncomes,
 			},
@@ -49,28 +52,29 @@ func NewIncomeMigrator(
 }
 
 func (i *IncomeMigrator) mapIncomes(requests []model.CreateIncomeRequest) (responses []model.IncomeDto, err error) {
-	if batch, err := i.client.CreateIncomeBatch(model.CreateIncomeBatchRequest{
-		Incomes: requests,
-	}); err != nil {
+	request := model.CreateIncomeBatchRequest{Incomes: requests}
+
+	if response, err := i.client.CreateIncomeBatch(request); err != nil {
 		log.Fatal().Err(err).Msg("failed to create income batch")
 		return nil, err
 	} else {
-		return batch, nil
+		log.Info().Msg(fmt.Sprintf("%d incomes created", len(response)))
+		return response, nil
 	}
 }
 
-func (i *IncomeMigrator) parseCSVLine() func(line []string) (model.CreateIncomeRequest, error) {
-	return func(line []string) (model.CreateIncomeRequest, error) {
-		sum, err := strconv.ParseFloat(line[3], 2)
+func (i *IncomeMigrator) parseCSVLine() func(line []string, lineNumber int) (model.CreateIncomeRequest, error) {
+	return func(line []string, lineNumber int) (model.CreateIncomeRequest, error) {
+		sum, err := strconv.ParseFloat(line[5], 2)
 
 		if err != nil {
-			log.Fatal().Msg(fmt.Sprintf("sum not valid float %s", line[3]))
+			log.Fatal().Msgf("sum not valid float %s at the csv line %d", line[3], lineNumber)
 		}
 
 		groupIds := func() []string {
-			groups := line[5]
+			groups := line[1]
 			if groups == "" {
-				return []string{}
+				return nil
 			}
 			var groupIds []string
 			for _, group := range strings.Split(groups, ",") {
@@ -78,7 +82,7 @@ func (i *IncomeMigrator) parseCSVLine() func(line []string) (model.CreateIncomeR
 				if dto, ok := i.groupMap[trimGroup]; ok {
 					groupIds = append(groupIds, dto.Id.String())
 				} else {
-					log.Fatal().Msg(fmt.Sprintf("group with name %s not found", trimGroup))
+					log.Fatal().Msgf("group with name %s not found at the csv line %d", trimGroup, lineNumber)
 				}
 			}
 			return groupIds
@@ -86,19 +90,19 @@ func (i *IncomeMigrator) parseCSVLine() func(line []string) (model.CreateIncomeR
 
 		houseId := func() string {
 			if len(groupIds) == 0 {
-				if dto, ok := i.houseMap[line[4]]; ok {
+				if dto, ok := i.houseMap[line[0]]; ok {
 					return dto.Id.String()
 				} else {
-					log.Fatal().Msg("group name or house identifier is missing")
+					log.Fatal().Msgf("group name or house identifier is missing at the csv line %d", lineNumber)
 				}
 			}
-			return ""
+			return uuid.Nil.String()
 		}()
 
 		request := model.CreateIncomeRequest{
-			Name:        line[0],
-			Description: line[1],
-			Date:        line[2],
+			Name:        line[2],
+			Description: line[3],
+			Date:        line[4],
 			Sum:         float32(sum),
 			HouseId:     houseId,
 			GroupIds:    groupIds,

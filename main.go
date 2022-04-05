@@ -13,8 +13,12 @@ import (
 )
 
 func main() {
+	log.Info().Msg("Starting hob-migration")
+
 	cmdConfig := config.NewCMDConfig()
 	cmdConfig.Parse()
+
+	log.Info().Msg(fmt.Sprintf("Config details: \n%s", cmdConfig.String()))
 
 	hobClient := client.NewHobClient(cmdConfig)
 
@@ -22,17 +26,20 @@ func main() {
 
 	requestMigrator := readRequestMigrator(cmdConfig)
 
-	groupMap := migrator.Migrate[map[string]model.GroupDto](migrator.NewGroupMigrator(requestMigrator, hobClient).BaseMigrator)
+	groupMap := migrator.Migrate[map[string]model.GroupDto](migrator.NewGroupMigrator(requestMigrator, cmdConfig, hobClient).BaseMigrator)
 	houseMap := migrator.Migrate[map[string]model.HouseDto](migrator.NewHouseMigrator(requestMigrator, cmdConfig, hobClient, groupMap).BaseMigrator)
 	migrator.Migrate[[]model.IncomeDto](migrator.NewIncomeMigrator(requestMigrator, hobClient, houseMap, groupMap).BaseMigrator)
 	migrator.Migrate[[]model.PaymentDto](migrator.NewPaymentMigrator(requestMigrator, cmdConfig, hobClient, houseMap).BaseMigrator)
+
+	log.Info().Msg("Completed hob-migration")
 }
 
 func validateRequest(cmdConfig *config.CMDConfig, hobClient *client.HobClient) {
 	err := hobClient.HealthCheck()
 
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("Hob API is not available")
+		return
 	}
 
 	if !hobClient.UserExists(cmdConfig.UserId) {

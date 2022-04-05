@@ -23,6 +23,8 @@ func NewHouseMigrator(
 	hobClient *client.HobClient,
 	groupMap map[string]model.GroupDto,
 ) *HouseMigrator {
+	log.Info().Msg("Starting House Migrator")
+
 	path, ok := requestMigrator.TypeToPathMap["houses"]
 	if !ok {
 		log.Info().Msg("houses path not found")
@@ -38,7 +40,7 @@ func NewHouseMigrator(
 		mappers: map[string]Mapper[map[string]model.HouseDto]{
 			"csv": &CSVMigrator[MapCreateHouseRequest, map[string]model.HouseDto]{
 				filePath: filePath,
-				header:   []string{"House Identifier", "Group", "Name", "Country", "City", "Address 1", "Address 2"},
+				header:   []string{"House Identifier", "Groups", "Name", "Country", "City", "Address 1", "Address 2"},
 				parser:   migrator.parseCSVLine(),
 				mapper:   migrator.mapHouses,
 			},
@@ -61,16 +63,18 @@ func (h *HouseMigrator) mapHouses(requests []MapCreateHouseRequest) (map[string]
 		}
 	}
 
+	log.Info().Msg(fmt.Sprintf("%d houses created", len(response)))
+
 	return response, nil
 }
 
-func (h *HouseMigrator) parseCSVLine() func(line []string) (MapCreateHouseRequest, error) {
-	return func(line []string) (MapCreateHouseRequest, error) {
+func (h *HouseMigrator) parseCSVLine() func(line []string, lineNumber int) (MapCreateHouseRequest, error) {
+	return func(line []string, lineNumber int) (MapCreateHouseRequest, error) {
 		var groupIds []uuid.UUID
 
 		for _, groupName := range strings.Split(line[1], ",") {
 			if dto, ok := h.groupMap[groupName]; !ok {
-				log.Fatal().Msg(fmt.Sprintf("group with name %s not found", groupName))
+				log.Fatal().Msgf("group with name %s not found at the csv line %d", groupName, lineNumber)
 			} else {
 				groupIds = append(groupIds, dto.Id)
 			}

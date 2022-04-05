@@ -37,7 +37,7 @@ type GroupDto struct {
 
 type CreateGroupRequest struct {
 	Name    string
-	OwnerId uuid.UUID
+	OwnerId string
 }
 
 type CreateGroupBatchRequest struct {

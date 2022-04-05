@@ -25,3 +25,7 @@ func (c *CMDConfig) Parse() {
 func migrationDetails() string {
 	return "Example of the migrator json:\n{\"groups\":\"path_to_the_file\"}\n\nPossible Values of keys:\n- groups\n- houses\n- incomes\n- payments"
 }
+
+func (c *CMDConfig) String() string {
+	return fmt.Sprintf("HobURL: %s, MigratorFilePath: %s, UserId: %s", c.HobURL, c.MigratorFilePath, c.UserId)
+}

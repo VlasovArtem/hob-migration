@@ -46,14 +46,17 @@ func (b *BaseMigrator[T]) Verify() error {
 type CSVMigrator[REQUEST any, RESPONSE any] struct {
 	filePath string
 	header   []string
-	parser   func(line []string) (REQUEST, error)
+	parser   func(line []string, lineNumber int) (REQUEST, error)
 	mapper   func(requests []REQUEST) (RESPONSE, error)
 }
 
 func (c *CSVMigrator[REQUEST, RESPONSE]) Map() (response RESPONSE, err error) {
+	log.Info().Msgf("Start CSV Migration for file: %s", c.filePath)
+
 	requests, err := parser.Parse[REQUEST](c.filePath, c.header, c.parser)
 
 	if err != nil {
+		log.Error().Err(err).Msgf("Error while parsing CSV file")
 		return response, err
 	}
 
