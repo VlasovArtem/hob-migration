@@ -24,15 +24,16 @@ type Mapper[RESPONSE any] interface {
 type BaseMigrator[RESPONSE any] struct {
 	mappers  map[string]Mapper[RESPONSE]
 	filePath string
-	Rollback func()
+	rollback func(RESPONSE)
 }
 
-func (b *BaseMigrator[RESPONSE]) Migrate(rollbackOnError []func()) RESPONSE {
+func (b *BaseMigrator[RESPONSE]) Migrate(rollbackOnError []func()) (RESPONSE, []func()) {
 	if b == nil {
-		return *new(RESPONSE)
+		return *new(RESPONSE), rollbackOnError
 	}
 
 	if err := b.Verify(); err != nil {
+		log.Err(err).Msg("Verify error")
 		rollback(rollbackOnError)
 	}
 
@@ -43,7 +44,7 @@ func (b *BaseMigrator[RESPONSE]) Migrate(rollbackOnError []func()) RESPONSE {
 		rollback(rollbackOnError)
 	}
 
-	return t
+	return t, append(rollbackOnError, func() { b.rollback(t) })
 }
 
 func (b *BaseMigrator[T]) Verify() error {

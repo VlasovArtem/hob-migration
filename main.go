@@ -6,7 +6,6 @@ import (
 	"github.com/VlasovArtem/hob-migration/src/client"
 	"github.com/VlasovArtem/hob-migration/src/config"
 	"github.com/VlasovArtem/hob-migration/src/migrator"
-	"github.com/VlasovArtem/hob-migration/src/model"
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"os"
@@ -28,25 +27,21 @@ func main() {
 
 	var rollbackOperation []func()
 
-	groupMigrator := migrator.NewGroupMigrator(requestMigrator, cmdConfig, hobClient)
-	groupMap := groupMigrator.Migrate[map[string]model.GroupDto](rollbackOperation)
+	groupMap, rollbackOperation := migrator.
+		NewGroupMigrator(requestMigrator, cmdConfig, hobClient).
+		Migrate(rollbackOperation)
 
-	rollbackOperation = append(rollbackOperation, func() { groupMigrator.Rollback(groupMap) })
+	houseMap, rollbackOperation := migrator.
+		NewHouseMigrator(requestMigrator, cmdConfig, hobClient, groupMap).
+		Migrate(rollbackOperation)
 
-	houseMigrator := migrator.NewHouseMigrator(requestMigrator, cmdConfig, hobClient, groupMap)
-	houseMap := houseMigrator.Migrate[map[string]model.HouseDto](rollbackOperation)
+	_, rollbackOperation = migrator.
+		NewIncomeMigrator(requestMigrator, hobClient, houseMap, groupMap).
+		Migrate(rollbackOperation)
 
-	rollbackOperation = append(rollbackOperation, func() { houseMigrator.Rollback(houseMap) })
-
-	incomeMigrator := migrator.NewIncomeMigrator(requestMigrator, hobClient, houseMap, groupMap)
-	incomes := incomeMigrator.Migrate[[]model.IncomeDto](rollbackOperation)
-
-	rollbackOperation = append(rollbackOperation, func() { incomeMigrator.Rollback(incomes) })
-
-	paymentMigrator := migrator.NewPaymentMigrator(requestMigrator, cmdConfig, hobClient, houseMap)
-	payments := paymentMigrator.Migrate[[]model.PaymentDto](rollbackOperation)
-
-	rollbackOperation = append(rollbackOperation, func() { paymentMigrator.Rollback(payments) })
+	_, rollbackOperation = migrator.
+		NewPaymentMigrator(requestMigrator, cmdConfig, hobClient, houseMap).
+		Migrate(rollbackOperation)
 
 	log.Info().Msg("Completed hob-migration")
 }
@@ -67,16 +62,16 @@ func validateRequest(cmdConfig *config.CMDConfig, hobClient *client.HobClient) {
 func readRequestMigrator(cmdConfig *config.CMDConfig) (migrator migrator.RequestMigrator) {
 	open, err := os.Open(cmdConfig.MigratorFilePath)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msgf("Failed to open migrator file %s", cmdConfig.MigratorFilePath)
 	}
 	bytes, err := ioutil.ReadAll(open)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msgf("Failed to read migrator file %s", cmdConfig.MigratorFilePath)
 	}
 	details := new(map[string]string)
 	err = json.Unmarshal(bytes, &details)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msgf("Failed to unmarshal migrator file %s", cmdConfig.MigratorFilePath)
 	}
 
 	migrator.TypeToPathMap = *details

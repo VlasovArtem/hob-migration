@@ -46,6 +46,7 @@ func NewHouseMigrator(
 			},
 		},
 		filePath: filePath,
+		rollback: migrator.rollback,
 	}
 
 	return migrator
@@ -57,7 +58,8 @@ func (h *HouseMigrator) mapHouses(requests []MapCreateHouseRequest) (map[string]
 	for _, request := range requests {
 		house, err := h.client.CreateHouse(request.request)
 		if err != nil {
-			log.Fatal().Err(err)
+			log.Error().Err(err).Msg("Error creating house")
+			return nil, err
 		} else {
 			response[request.identifier] = house
 		}
@@ -72,11 +74,17 @@ func (h *HouseMigrator) parseCSVLine() func(line []string, lineNumber int) (MapC
 	return func(line []string, lineNumber int) (MapCreateHouseRequest, error) {
 		var groupIds []uuid.UUID
 
-		for _, groupName := range strings.Split(line[1], ",") {
-			if dto, ok := h.groupMap[groupName]; !ok {
-				log.Fatal().Msgf("group with name %s not found at the csv line %d", groupName, lineNumber)
-			} else {
-				groupIds = append(groupIds, dto.Id)
+		groupNames := line[1]
+
+		if len(groupNames) > 0 {
+			for _, groupName := range strings.Split(groupNames, ",") {
+				if dto, ok := h.groupMap[groupName]; !ok {
+					err := fmt.Errorf("group with name %s not found at the csv line %d", groupName, lineNumber)
+					log.Error().Err(err).Msg("Error reading groups")
+					return MapCreateHouseRequest{}, err
+				} else {
+					groupIds = append(groupIds, dto.Id)
+				}
 			}
 		}
 		request := model.CreateHouseRequest{
@@ -101,7 +109,7 @@ type MapCreateHouseRequest struct {
 	request    model.CreateHouseRequest
 }
 
-func (h *HouseMigrator) Rollback(data map[string]model.HouseDto) {
+func (h *HouseMigrator) rollback(data map[string]model.HouseDto) {
 	log.Info().Msg("Rolling back houses")
 	if len(data) == 0 {
 		log.Info().Msg("No houses to rollback")
@@ -114,4 +122,11 @@ func (h *HouseMigrator) Rollback(data map[string]model.HouseDto) {
 			log.Info().Msgf("House with id %s and name %s deleted", house.Id, house.Name)
 		}
 	}
+}
+
+func (h *HouseMigrator) Migrate(rollbackOperation []func()) (map[string]model.HouseDto, []func()) {
+	if h != nil {
+		return h.BaseMigrator.Migrate(rollbackOperation)
+	}
+	return nil, rollbackOperation
 }

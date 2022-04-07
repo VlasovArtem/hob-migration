@@ -32,7 +32,7 @@ func Parse[T any](path string, header []string, parser func(line []string, lineN
 	for i, line := range data {
 		if i == 0 {
 			if err := validator.VerifyCSVHeader(header, line); err != nil {
-				log.Fatal().Msg(err.Error())
+				log.Err(err).Msgf("Can't parse file %s", path)
 				return nil, err
 			}
 		} else {

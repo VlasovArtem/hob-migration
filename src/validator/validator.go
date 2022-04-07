@@ -33,7 +33,7 @@ func VerifyFilePathIsEmpty(path string, message string) error {
 }
 
 func VerifyFilePathTypeIsValid(path string) error {
-	ext := filepath.Ext(path)
+	ext := strings.Replace(filepath.Ext(path), ".", "", 1)
 
 	if !slices.Contains(SupportedTypes, ext) {
 		return errors.New(fmt.Sprintf("format %s not supported. Supported formats: %s", ext,

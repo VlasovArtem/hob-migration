@@ -48,6 +48,7 @@ func NewPaymentMigrator(
 			},
 		},
 		filePath: filePath,
+		rollback: migrator.rollback,
 	}
 
 	return migrator
@@ -57,7 +58,7 @@ func (p *PaymentMigrator) mapPayments(requests []model.CreatePaymentRequest) (re
 	request := model.CreatePaymentBatchRequest{Payments: requests}
 
 	if response, err := p.client.CreatePaymentBatch(request); err != nil {
-		log.Fatal().Err(err).Msg("error while creating payments")
+		log.Error().Err(err).Msg("error while creating payments")
 		return nil, err
 	} else {
 		log.Info().Msg(fmt.Sprintf("%d payments created", len(response)))
@@ -70,16 +71,20 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (mo
 		sum, err := strconv.ParseFloat(line[4], 2)
 
 		if err != nil {
-			log.Fatal().Msgf("sum not valid float %s at the csv line %d", line[3], lineNumber)
+			log.Error().Err(err).Msgf("sum not valid float %s at the csv line %d", line[3], lineNumber)
+			return model.CreatePaymentRequest{}, err
 		}
 
-		houseId := func() string {
+		houseId, err := func() (string, error) {
 			if dto, ok := p.houseMap[line[0]]; ok {
-				return dto.Id.String()
+				return dto.Id.String(), nil
 			}
-			log.Fatal().Msgf("house identifier is missing at the csv line %d", lineNumber)
-			return uuid.Nil.String()
+			return uuid.Nil.String(), fmt.Errorf("house identifier is missing at the csv line %d", lineNumber)
 		}()
+
+		if err != nil {
+			return model.CreatePaymentRequest{}, err
+		}
 
 		request := model.CreatePaymentRequest{
 			Name:        line[1],
@@ -95,7 +100,7 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (mo
 	}
 }
 
-func (p *PaymentMigrator) Rollback(data []model.PaymentDto) {
+func (p *PaymentMigrator) rollback(data []model.PaymentDto) {
 	log.Info().Msg("Rolling back payments")
 	if len(data) == 0 {
 		log.Info().Msg("No payments to rollback")
@@ -108,4 +113,11 @@ func (p *PaymentMigrator) Rollback(data []model.PaymentDto) {
 			log.Info().Msgf("Payment with id %s and name %s deleted", payment.Id, payment.Name)
 		}
 	}
+}
+
+func (p *PaymentMigrator) Migrate(rollbackOperation []func()) ([]model.PaymentDto, []func()) {
+	if p != nil {
+		return p.BaseMigrator.Migrate(rollbackOperation)
+	}
+	return nil, rollbackOperation
 }

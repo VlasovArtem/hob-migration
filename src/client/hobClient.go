@@ -123,7 +123,7 @@ func ReadBody[T any](response *http.Response, err error) (T, error) {
 
 	if response.StatusCode != 200 && response.StatusCode != 201 {
 		text := string(allBytes)
-		log.Fatal().Msg(text)
+		log.Err(err).Msg(text)
 		return t, errors.New(text)
 	}
 

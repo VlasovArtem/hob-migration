@@ -37,6 +37,7 @@ func NewGroupMigrator(requestMigrator RequestMigrator, config *config.CMDConfig,
 			},
 		},
 		filePath: filePath,
+		rollback: migrator.rollback,
 	}
 
 	return migrator
@@ -69,7 +70,7 @@ func (g *GroupMigrator) parseCSVLine() func(line []string, lineNumber int) (mode
 	}
 }
 
-func (g *GroupMigrator) Rollback(data map[string]model.GroupDto) {
+func (g *GroupMigrator) rollback(data map[string]model.GroupDto) {
 	log.Info().Msg("Rolling back groups")
 	if len(data) == 0 {
 		log.Info().Msg("No groups to rollback")
@@ -82,4 +83,18 @@ func (g *GroupMigrator) Rollback(data map[string]model.GroupDto) {
 			log.Info().Msgf("Group with id %s and name %s deleted", group.Id, group.Name)
 		}
 	}
+}
+
+func (g *GroupMigrator) Migrate(rollbackOperation []func()) (map[string]model.GroupDto, []func()) {
+	if g != nil {
+		return g.BaseMigrator.Migrate(rollbackOperation)
+	}
+	return nil, rollbackOperation
+}
+
+func (g *GroupMigrator) GetBaseMigrator() *BaseMigrator[map[string]model.GroupDto] {
+	if g != nil {
+		return g.BaseMigrator
+	}
+	return nil
 }
