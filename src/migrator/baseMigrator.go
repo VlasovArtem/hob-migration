@@ -4,6 +4,7 @@ import (
 	"github.com/VlasovArtem/hob-migration/src/parser"
 	"github.com/VlasovArtem/hob-migration/src/validator"
 	"github.com/rs/zerolog/log"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -23,10 +24,26 @@ type Mapper[RESPONSE any] interface {
 type BaseMigrator[RESPONSE any] struct {
 	mappers  map[string]Mapper[RESPONSE]
 	filePath string
+	Rollback func()
 }
 
-func (b *BaseMigrator[RESPONSE]) Migrate() (RESPONSE, error) {
-	return b.mappers[strings.Replace(filepath.Ext(b.filePath), ".", "", 1)].Map()
+func (b *BaseMigrator[RESPONSE]) Migrate(rollbackOnError []func()) RESPONSE {
+	if b == nil {
+		return *new(RESPONSE)
+	}
+
+	if err := b.Verify(); err != nil {
+		rollback(rollbackOnError)
+	}
+
+	t, err := b.mappers[strings.Replace(filepath.Ext(b.filePath), ".", "", 1)].Map()
+
+	if err != nil {
+		log.Error().Err(err).Msg("Error while migrating")
+		rollback(rollbackOnError)
+	}
+
+	return t
 }
 
 func (b *BaseMigrator[T]) Verify() error {
@@ -41,6 +58,16 @@ func (b *BaseMigrator[T]) Verify() error {
 			return validator.VerifyFilePathExists(b.filePath)
 		},
 	)
+}
+
+func rollback(rollbackOnError []func()) {
+	if len(rollbackOnError) != 0 {
+		for i := len(rollbackOnError) - 1; i >= 0; i-- {
+			rollbackOnError[i]()
+		}
+	}
+
+	os.Exit(1)
 }
 
 type CSVMigrator[REQUEST any, RESPONSE any] struct {
@@ -61,24 +88,4 @@ func (c *CSVMigrator[REQUEST, RESPONSE]) Map() (response RESPONSE, err error) {
 	}
 
 	return c.mapper(requests)
-}
-
-func Migrate[T any](baseMigrator *BaseMigrator[T]) T {
-	if baseMigrator == nil {
-		return *new(T)
-	}
-
-	verify(baseMigrator)
-
-	t, err := baseMigrator.Migrate()
-	if err != nil {
-		log.Fatal().Err(err)
-	}
-	return t
-}
-
-func verify(validator validator.Validator) {
-	if err := validator.Verify(); err != nil {
-		log.Fatal().Err(err)
-	}
 }

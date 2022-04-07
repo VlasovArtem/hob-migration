@@ -1,4 +1,6 @@
 # House Of Bills Migration Script
+The application migrate data based on provided configuration.
+The system performs rollback if one of the migration fails.
 
 ## How to build
 
@@ -53,16 +55,16 @@ Possible file formats:
 
 ### Incomes
 
-| House Identifier     | Groups                         | Name        | Description        | Date                 | Sum    |
-|----------------------|--------------------------------|-------------|--------------------|----------------------|--------|
-| Reference to a House | Group Names (divided by comma) | Income Name | Income Description | 2017-12-20T00:00:00Z | 100,01 |
+| House Identifier     | Groups                         | Name        | Description                                                                    | Date                 | Sum    |
+|----------------------|--------------------------------|-------------|--------------------------------------------------------------------------------|----------------------|--------|
+| Reference to a House | Group Names (divided by comma) | Income Name | Income Description (to replace ',' use ';'. The ';' will be replaced with ',') | 2017-12-20T00:00:00Z | 100,01 |
 
 `House Identifier` or `Groups` name requires
 
 ### Payments
 
-| House Identifier     | Name        | Description        | Date                 | Sum    |
-|----------------------|-------------|--------------------|----------------------|--------|
-| Reference to a House | Income Name | Income Description | 2017-12-20T00:00:00Z | 100,01 |
+| House Identifier     | Name        | Description                                                                    | Date                 | Sum    |
+|----------------------|-------------|--------------------------------------------------------------------------------|----------------------|--------|
+| Reference to a House | Income Name | Income Description (to replace ',' use ';'. The ';' will be replaced with ',') | 2017-12-20T00:00:00Z | 100,01 |
 
 `House Identifier` requires

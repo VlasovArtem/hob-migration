@@ -101,7 +101,7 @@ func (i *IncomeMigrator) parseCSVLine() func(line []string, lineNumber int) (mod
 
 		request := model.CreateIncomeRequest{
 			Name:        line[2],
-			Description: line[3],
+			Description: strings.Replace(line[3], ";", ",", -1),
 			Date:        line[4],
 			Sum:         float32(sum),
 			HouseId:     houseId,
@@ -109,5 +109,20 @@ func (i *IncomeMigrator) parseCSVLine() func(line []string, lineNumber int) (mod
 		}
 
 		return request, nil
+	}
+}
+
+func (i *IncomeMigrator) Rollback(data []model.IncomeDto) {
+	log.Info().Msg("Rolling back incomes")
+	if len(data) == 0 {
+		log.Info().Msg("No incomes to rollback")
+	}
+
+	for _, income := range data {
+		if err := i.client.DeleteIncomeById(income.Id); err != nil {
+			log.Error().Err(err).Msgf("Failed to delete income with id %s and name %s", income.Id, income.Name)
+		} else {
+			log.Info().Msgf("Income with id %s and name %s deleted", income.Id, income.Name)
+		}
 	}
 }

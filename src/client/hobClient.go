@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/VlasovArtem/hob-migration/src/config"
 	"github.com/VlasovArtem/hob-migration/src/model"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"net/http"
@@ -75,6 +76,22 @@ func (h *HobClient) CreatePaymentBatch(request model.CreatePaymentBatchRequest) 
 	return ReadBody[[]model.PaymentDto](http.Post(h.config.HobURL+"/api/v1/payments/batch", "application/json", bytes.NewReader(requestBytes)))
 }
 
+func (h *HobClient) DeleteGroupById(id uuid.UUID) error {
+	return deleteByURL(h.config.HobURL + "/api/v1/groups/" + id.String())
+}
+
+func (h *HobClient) DeleteHouseById(id uuid.UUID) error {
+	return deleteByURL(h.config.HobURL + "/api/v1/houses/" + id.String())
+}
+
+func (h *HobClient) DeleteIncomeById(id uuid.UUID) error {
+	return deleteByURL(h.config.HobURL + "/api/v1/incomes/" + id.String())
+}
+
+func (h *HobClient) DeletePaymentById(id uuid.UUID) error {
+	return deleteByURL(h.config.HobURL + "/api/v1/payments/" + id.String())
+}
+
 func (h *HobClient) UserExists(id string) bool {
 	response, err := http.Get(h.config.HobURL + "/api/v1/users/" + id)
 
@@ -117,4 +134,24 @@ func ReadBody[T any](response *http.Response, err error) (T, error) {
 	}
 
 	return t, nil
+}
+
+func deleteByURL(url string) error {
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
+
+	if err != nil {
+		return err
+	}
+
+	response, err := http.DefaultClient.Do(request)
+
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != 204 {
+		return errors.New("failed to delete")
+	}
+
+	return nil
 }

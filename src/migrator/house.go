@@ -100,3 +100,18 @@ type MapCreateHouseRequest struct {
 	identifier string
 	request    model.CreateHouseRequest
 }
+
+func (h *HouseMigrator) Rollback(data map[string]model.HouseDto) {
+	log.Info().Msg("Rolling back houses")
+	if len(data) == 0 {
+		log.Info().Msg("No houses to rollback")
+	}
+
+	for _, house := range data {
+		if err := h.client.DeleteHouseById(house.Id); err != nil {
+			log.Error().Err(err).Msgf("Failed to delete house with id %s and name %s", house.Id, house.Name)
+		} else {
+			log.Info().Msgf("House with id %s and name %s deleted", house.Id, house.Name)
+		}
+	}
+}

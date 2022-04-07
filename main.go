@@ -26,10 +26,27 @@ func main() {
 
 	requestMigrator := readRequestMigrator(cmdConfig)
 
-	groupMap := migrator.Migrate[map[string]model.GroupDto](migrator.NewGroupMigrator(requestMigrator, cmdConfig, hobClient).BaseMigrator)
-	houseMap := migrator.Migrate[map[string]model.HouseDto](migrator.NewHouseMigrator(requestMigrator, cmdConfig, hobClient, groupMap).BaseMigrator)
-	migrator.Migrate[[]model.IncomeDto](migrator.NewIncomeMigrator(requestMigrator, hobClient, houseMap, groupMap).BaseMigrator)
-	migrator.Migrate[[]model.PaymentDto](migrator.NewPaymentMigrator(requestMigrator, cmdConfig, hobClient, houseMap).BaseMigrator)
+	var rollbackOperation []func()
+
+	groupMigrator := migrator.NewGroupMigrator(requestMigrator, cmdConfig, hobClient)
+	groupMap := groupMigrator.Migrate[map[string]model.GroupDto](rollbackOperation)
+
+	rollbackOperation = append(rollbackOperation, func() { groupMigrator.Rollback(groupMap) })
+
+	houseMigrator := migrator.NewHouseMigrator(requestMigrator, cmdConfig, hobClient, groupMap)
+	houseMap := houseMigrator.Migrate[map[string]model.HouseDto](rollbackOperation)
+
+	rollbackOperation = append(rollbackOperation, func() { houseMigrator.Rollback(houseMap) })
+
+	incomeMigrator := migrator.NewIncomeMigrator(requestMigrator, hobClient, houseMap, groupMap)
+	incomes := incomeMigrator.Migrate[[]model.IncomeDto](rollbackOperation)
+
+	rollbackOperation = append(rollbackOperation, func() { incomeMigrator.Rollback(incomes) })
+
+	paymentMigrator := migrator.NewPaymentMigrator(requestMigrator, cmdConfig, hobClient, houseMap)
+	payments := paymentMigrator.Migrate[[]model.PaymentDto](rollbackOperation)
+
+	rollbackOperation = append(rollbackOperation, func() { paymentMigrator.Rollback(payments) })
 
 	log.Info().Msg("Completed hob-migration")
 }

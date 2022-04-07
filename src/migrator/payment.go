@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strconv"
+	"strings"
 )
 
 type PaymentMigrator struct {
@@ -82,7 +83,7 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (mo
 
 		request := model.CreatePaymentRequest{
 			Name:        line[1],
-			Description: line[2],
+			Description: strings.Replace(line[2], ";", ",", -1),
 			HouseId:     houseId,
 			UserId:      p.config.UserId,
 			Date:        line[3],
@@ -91,5 +92,20 @@ func (p *PaymentMigrator) parseCSVLine() func(line []string, lineNumber int) (mo
 		}
 
 		return request, nil
+	}
+}
+
+func (p *PaymentMigrator) Rollback(data []model.PaymentDto) {
+	log.Info().Msg("Rolling back payments")
+	if len(data) == 0 {
+		log.Info().Msg("No payments to rollback")
+	}
+
+	for _, payment := range data {
+		if err := p.client.DeletePaymentById(payment.Id); err != nil {
+			log.Error().Err(err).Msgf("Failed to delete payment with id %s and name %s", payment.Id, payment.Name)
+		} else {
+			log.Info().Msgf("Payment with id %s and name %s deleted", payment.Id, payment.Name)
+		}
 	}
 }

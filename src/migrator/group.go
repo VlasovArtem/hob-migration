@@ -68,3 +68,18 @@ func (g *GroupMigrator) parseCSVLine() func(line []string, lineNumber int) (mode
 		return request, nil
 	}
 }
+
+func (g *GroupMigrator) Rollback(data map[string]model.GroupDto) {
+	log.Info().Msg("Rolling back groups")
+	if len(data) == 0 {
+		log.Info().Msg("No groups to rollback")
+	}
+
+	for _, group := range data {
+		if err := g.client.DeleteGroupById(group.Id); err != nil {
+			log.Error().Err(err).Msgf("Failed to delete group with id %s and name %s", group.Id, group.Name)
+		} else {
+			log.Info().Msgf("Group with id %s and name %s deleted", group.Id, group.Name)
+		}
+	}
+}
